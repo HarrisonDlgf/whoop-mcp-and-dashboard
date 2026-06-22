@@ -1,0 +1,19 @@
+// Prisma schema. The full WHOOP data model is built out in M2.
+// M0 establishes only the baseline User so the first migration is real.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// The single app user in v1. Every future table carries a userId so going
+/// multi-user later is a migration, not a rewrite (see PRD.md §2).
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+}

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mv /tmp/whoop-docs-stash/* .)",
+      "Bash(rmdir /tmp/whoop-docs-stash)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('next',p.dependencies.next,'| react',p.dependencies.react,'| ts',p.devDependencies.typescript\\)\")",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs"
+    ]
+  }
+}
