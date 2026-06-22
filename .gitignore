@@ -46,3 +46,7 @@ next-env.d.ts
 
 # claude
 .claude/
+
+# markdown (keep only README.md)
+*.md
+!README.md
