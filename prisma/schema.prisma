@@ -13,7 +13,90 @@ datasource db {
 /// The single app user in v1. Every future table carries a userId so going
 /// multi-user later is a migration, not a rewrite (see PRD.md §2).
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
+  id         String      @id @default(cuid())
+  name       String
+  createdAt  DateTime    @default(now())
+  whoopToken WhoopToken?
+  recoveries Recovery[]
+  sleeps     Sleep[]
+  workouts   Workout[]
+}
+
+/// Where a synced record came from. WHOOP-only in v1; GARMIN reserved so
+/// adding it later is a one-line enum change, not a schema redesign.
+enum Source {
+  WHOOP
+  GARMIN
+}
+
+/// One recovery reading per calendar day. Metrics are optional because the
+/// provider can return unscorable days (e.g. sensor off overnight).
+model Recovery {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  source           Source   @default(WHOOP)
+  sourceId         String
+  date             DateTime @db.Date
+  recoveryScore    Float?
+  hrv              Float?
+  restingHeartRate Float?
+  raw              Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([source, sourceId])
+  @@unique([userId, date])
+}
+
+model Sleep {
+  id                  String    @id @default(cuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id])
+  source              Source    @default(WHOOP)
+  sourceId            String
+  date                DateTime  @db.Date
+  sleepPerformancePct Float?
+  durationMinutes     Int?
+  sleepStart          DateTime?
+  nap                 Boolean   @default(false)
+  raw                 Json
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([source, sourceId])
+  @@index([userId, date])
+}
+
+model Workout {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  source         Source   @default(WHOOP)
+  sourceId       String
+  start          DateTime
+  end            DateTime
+  sportName      String
+  strain         Float?
+  avgHr          Int?
+  maxHr          Int?
+  distanceMeters Float?
+  zoneDurations  Json?
+  raw            Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([source, sourceId])
+  @@index([userId, start])
+}
+
+
+model WhoopToken {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  updatedAt    DateTime @updatedAt
 }

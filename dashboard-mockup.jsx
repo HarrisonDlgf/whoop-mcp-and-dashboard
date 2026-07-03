@@ -6,7 +6,7 @@ import {
   Heart, Moon, Flame, Activity, Check, Plus, AlertTriangle, RefreshCw,
 } from "lucide-react";
 
-// ---- sample data (mockup only; the real app pulls this from Postgres) ----
+// mock data to be deleted
 const TREND = [
   { d: "Jun 1", hrv: 108, rhr: 48, rec: 66 },
   { d: "Jun 2", hrv: 121, rhr: 46, rec: 78 },

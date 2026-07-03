@@ -10,8 +10,13 @@ const envSchema = z.object({
   // single-user app it's simplest and avoids pooler/migration friction.
   DATABASE_URL: z.url(),
 
-  // Single-user gate for v1. Wired in M1; optional until then.
-  APP_SECRET: z.string().min(1).optional(),
+  // Single-user gate for v1. Required: protected routes compare against it.
+  APP_SECRET: z.string().min(16),
+
+  // WHOOP OAuth
+  WHOOP_CLIENT_ID: z.string().min(1),
+  WHOOP_CLIENT_SECRET: z.string().min(1),
+  WHOOP_REDIRECT_URI: z.url(),
 
   NODE_ENV: z
     .enum(["development", "test", "production"])
