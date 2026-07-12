@@ -1,6 +1,8 @@
 import { PrismaClient } from "./generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { env } from "./env";
+// this is my user id in the row
+export const SINGLETON_USER_ID = "singleton";
 
 const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
 

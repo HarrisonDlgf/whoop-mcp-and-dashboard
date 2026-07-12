@@ -1,9 +1,15 @@
 import "server-only";
-import { prisma } from "@/lib/db";
+import { prisma, SINGLETON_USER_ID } from "@/lib/db";
 import { refreshAccessToken } from "@/lib/whoop/auth";
+import type {
+  CollectionPage,
+  WhoopRecovery,
+  WhoopSleep,
+  WhoopWorkout,
+} from "@/lib/whoop/types";
 
 const WHOOP_API = "https://api.prod.whoop.com/developer/v2";
-const USER_ID = "singleton";
+const USER_ID = SINGLETON_USER_ID;
 
 // Returns a valid access token, refreshing it first if it's expired.
 async function getAccessToken(): Promise<string> {
@@ -46,4 +52,35 @@ async function whoopGet(path: string): Promise<unknown> {
 
 export async function getLatestRecovery() {
   return whoopGet("/recovery?limit=1");
+}
+
+async function whoopCollection<T>(path: string, start: Date): Promise<T[]> {
+  const records: T[] = [];
+  let nextToken: string | undefined;
+
+  do {
+    const params = new URLSearchParams({
+      limit: "25",
+      start: start.toISOString(),
+    });
+    if (nextToken) params.set("nextToken", nextToken);
+
+    const page = (await whoopGet(`${path}?${params}`)) as CollectionPage<T>;
+    records.push(...page.records);
+    nextToken = page.next_token ?? undefined;
+  } while (nextToken);
+
+  return records;
+}
+
+export function getRecoveries(start: Date) {
+  return whoopCollection<WhoopRecovery>("/recovery", start);
+}
+
+export function getSleeps(start: Date) {
+  return whoopCollection<WhoopSleep>("/activity/sleep", start);
+}
+
+export function getWorkouts(start: Date) {
+  return whoopCollection<WhoopWorkout>("/activity/workout", start);
 }

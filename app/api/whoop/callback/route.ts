@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { exchangeCodeForTokens } from "@/lib/whoop/auth";
-import { prisma } from "@/lib/db";
+import { prisma, SINGLETON_USER_ID } from "@/lib/db";
 
 // callback from WHOOP get
 export async function GET(request: NextRequest) {
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
   const tokens = await exchangeCodeForTokens(code);
 
-  const USER_ID = "singleton";
+  const USER_ID = SINGLETON_USER_ID;
 
   await prisma.user.upsert({
     where: { id: USER_ID },
