@@ -13,6 +13,8 @@ const envSchema = z.object({
   // Single-user gate for v1. Required: protected routes compare against it.
   APP_SECRET: z.string().min(16),
 
+  CRON_SECRET: z.string().min(16).optional(),
+
   // WHOOP OAuth
   WHOOP_CLIENT_ID: z.string().min(1),
   WHOOP_CLIENT_SECRET: z.string().min(1),
