@@ -84,3 +84,11 @@ export function getSleeps(start: Date) {
 export function getWorkouts(start: Date) {
   return whoopCollection<WhoopWorkout>("/activity/workout", start);
 }
+
+export async function getSleepById(id: string): Promise<WhoopSleep> {
+  return (await whoopGet(`/activity/sleep/${id}`)) as WhoopSleep;
+}
+
+export async function getWorkoutById(id: string): Promise<WhoopWorkout> {
+  return (await whoopGet(`/activity/workout/${id}`)) as WhoopWorkout;
+}

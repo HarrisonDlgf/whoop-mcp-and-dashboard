@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
+import { processWhoopEvent, type WhoopWebhookEvent } from "@/lib/whoop/events";
 
 // every whoop post has a timestamp and header with a unique identifier, this will recreate and make sure no outside sources can
 // touch my WHOOP data
@@ -40,17 +41,15 @@ export async function POST(request: Request) {
     return new Response("invalid signature", { status: 401 });
   }
 
-  const event = JSON.parse(rawBody);
+  const event = JSON.parse(rawBody) as WhoopWebhookEvent;
   console.log("[whoop webhook] verified:", event);
 
-  const { type, id } = event;
-  switch (type) {
-    case "sleep.updated": break;
-    case "workout.updated": break;
-    case "recovery.updated": break;
-    case "sleep.deleted":
-    case "workout.deleted":
-    case "recovery.deleted": break;
+  try {
+    await processWhoopEvent(event);
+  } catch (err) {
+    console.error("[whoop webhook] processing failed:", err);
+    return new Response("processing error", { status: 500 });
   }
+
   return new Response("ok", { status: 200 });
 }
