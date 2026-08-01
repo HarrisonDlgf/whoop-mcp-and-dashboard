@@ -100,6 +100,34 @@ kbd { font-family: var(--fd); font-size: 11px; background: var(--elevated);
   padding: 11px 13px; margin-top: 13px; }
 .warn .wt { font-size: 12.5px; color: var(--amber); line-height: 1.45; }
 
+.race-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.race-weeks { font-family: var(--fd); font-size: 30px; font-weight: 600; letter-spacing: -.02em;
+  color: var(--ink); line-height: 1; }
+.race-weeks small { font-size: 14px; color: var(--muted); }
+.race-weeks-sub { font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+.race-ready { text-align: right; }
+.race-ready-val { font-family: var(--fd); font-size: 22px; font-weight: 600; color: var(--ink); line-height: 1; }
+.race-ready-val small { font-size: 12px; color: var(--muted); }
+.race-ready-sub { font-family: var(--fd); font-size: 11px; color: var(--muted); margin-top: 3px; }
+.race-badge { display: inline-block; margin-top: 6px; font-family: var(--fd); font-size: 10.5px;
+  font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+.race-badge.ok { color: var(--green); background: var(--green-bg); }
+.race-badge.warn { color: var(--amber); background: var(--amber-bg); }
+.race-vol-head { display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 12px; color: var(--ink-soft); margin: 16px 0 8px; }
+.race-vol-now { font-family: var(--fd); font-size: 12px; color: var(--ink); }
+.vol-bars { display: flex; align-items: flex-end; gap: 6px; height: 92px; }
+.vol-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+.vol-val { font-family: var(--fd); font-size: 10.5px; color: var(--ink-soft); height: 14px; }
+.vol-track { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.vol-fill { width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px;
+  transition: height .4s cubic-bezier(0.22,1,0.36,1); }
+.vol-wk { font-family: var(--fd); font-size: 9.5px; color: var(--muted); margin-top: 5px; }
+.race-completion-head { display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 18px; font-size: 13px; color: var(--ink-soft); }
+.race-completion-val { font-family: var(--fd); font-weight: 600; color: var(--ink); }
+
 .muted-note { text-align: center; margin-top: 26px; font-family: var(--fd); font-size: 11px; color: var(--muted); }
 
 .empty { max-width: 460px; margin: 14vh auto 0; text-align: center; }

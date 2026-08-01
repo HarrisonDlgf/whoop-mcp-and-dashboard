@@ -48,7 +48,7 @@ export default async function Dashboard() {
     getTrend(14),
     getRecentRuns(4),
     getRecentLifts(3),
-    getRacePrep(5),
+    getRacePrep(6),
     getLastSync(),
   ]);
 
@@ -73,6 +73,11 @@ export default async function Dashboard() {
   const completion =
     racePrep.windowWeeks > 0 ? racePrep.weeksWithLongRun / racePrep.windowWeeks : 0;
   const completionSlipping = completion < 0.6;
+  const volMax = Math.max(...racePrep.weeklyVolume.map((w) => w.miles), 1);
+  const weekDelta =
+    racePrep.lastWeekMiles > 0
+      ? racePrep.thisWeekMiles - racePrep.lastWeekMiles
+      : null;
 
   return (
     <div className="wrap">
@@ -213,10 +218,73 @@ export default async function Dashboard() {
           <div id="race">
             <div className="section-label" style={{ marginTop: 16 }}>Race prep</div>
             <div className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                <span style={{ fontSize: 13, color: "var(--ink-soft)" }}>Long-run completion</span>
-                <span style={{ fontFamily: "var(--fd)", fontWeight: 600, color: "var(--ink)" }}>
-                  {racePrep.weeksWithLongRun} of {racePrep.windowWeeks} weeks
+              <div className="race-top">
+                <div>
+                  <div className="race-weeks">
+                    {racePrep.weeksToRace}
+                    <small> wk</small>
+                  </div>
+                  <div className="race-weeks-sub">
+                    to {racePrep.raceName} · {racePrep.raceDistanceMiles} mi
+                  </div>
+                </div>
+                {racePrep.longestRun && (
+                  <div className="race-ready">
+                    <div className="race-ready-val">
+                      {racePrep.longestRun.miles}
+                      <small> mi</small>
+                    </div>
+                    <div className="race-ready-sub">
+                      longest · {racePrep.longestRun.date}
+                    </div>
+                    <div
+                      className={`race-badge ${racePrep.coveredRaceDistance ? "ok" : "warn"}`}
+                    >
+                      {racePrep.coveredRaceDistance
+                        ? "Race distance covered"
+                        : `${(racePrep.raceDistanceMiles - racePrep.longestRun.miles).toFixed(1)} mi to go`}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="race-vol-head">
+                <span>Weekly volume</span>
+                <span className="race-vol-now">
+                  this wk {racePrep.thisWeekMiles} mi
+                  {weekDelta !== null && (
+                    <span
+                      style={{ color: weekDelta >= 0 ? "var(--good)" : "var(--bad)" }}
+                    >
+                      {" "}
+                      {weekDelta >= 0 ? "▲" : "▼"} {Math.abs(weekDelta).toFixed(1)}
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="vol-bars">
+                {racePrep.weeklyVolume.map((w, i) => (
+                  <div className="vol-col" key={i}>
+                    <div className="vol-val">{w.miles || ""}</div>
+                    <div className="vol-track">
+                      <div
+                        className="vol-fill"
+                        style={{
+                          height: `${(w.miles / volMax) * 100}%`,
+                          opacity:
+                            i === racePrep.weeklyVolume.length - 1 ? 1 : 0.55,
+                        }}
+                      />
+                    </div>
+                    <div className="vol-wk">{w.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="race-completion-head">
+                <span>Long-run completion</span>
+                <span className="race-completion-val">
+                  {racePrep.weeksWithLongRun} of {racePrep.windowWeeks} wks
                 </span>
               </div>
               <div className="bar">
