@@ -4,7 +4,10 @@ const METERS_PER_MILE = 1609.344;
 
 // Falmouth road race day
 export const RACE_DAY = new Date("2026-08-16T00:00:00Z");
+export const RACE_NAME = "Falmouth";
+export const RACE_DISTANCE_MILES = 7;
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const LONG_RUN_METERS = 5 * METERS_PER_MILE;
 
 function isRun(sportName: string): boolean {
@@ -194,15 +197,42 @@ export async function getRecentLifts(limit = 3): Promise<LiftSummary[]> {
     }));
 }
 
-export type RacePrep = {
-  weeksToRace: number;
-  windowWeeks: number;
-  weeksWithLongRun: number;
+export type WeeklyVolume = {
+  label: string;
+  miles: number;
+  longRunMiles: number;
 };
 
-export async function getRacePrep(windowWeeks = 5): Promise<RacePrep> {
-  const msToRace = RACE_DAY.getTime() - Date.now();
-  const weeksToRace = Math.max(0, Math.ceil(msToRace / (7 * 24 * 60 * 60 * 1000)));
+export type RacePrep = {
+  weeksToRace: number;
+  raceName: string;
+  raceDistanceMiles: number;
+  longestRun: { miles: number; date: string } | null;
+  coveredRaceDistance: boolean;
+  windowWeeks: number;
+  weeksWithLongRun: number;
+  weeklyVolume: WeeklyVolume[];
+  thisWeekMiles: number;
+  lastWeekMiles: number;
+};
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+function shortDay(ms: number): string {
+  return new Date(ms).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+export async function getRacePrep(windowWeeks = 6): Promise<RacePrep> {
+  const weeksToRace = Math.max(
+    0,
+    Math.ceil((RACE_DAY.getTime() - Date.now()) / WEEK_MS),
+  );
 
   const latestWorkout = await prisma.workout.findFirst({
     where: { userId: SINGLETON_USER_ID },
@@ -211,29 +241,65 @@ export async function getRacePrep(windowWeeks = 5): Promise<RacePrep> {
   });
   const anchor = latestWorkout?.start ?? new Date();
   const windowStart = startOfUtcDay(
-    new Date(anchor.getTime() - windowWeeks * 7 * 24 * 60 * 60 * 1000),
+    new Date(anchor.getTime() - windowWeeks * WEEK_MS),
   );
 
   const rows = await prisma.workout.findMany({
-    where: {
-      userId: SINGLETON_USER_ID,
-      start: { gte: windowStart },
-    },
+    where: { userId: SINGLETON_USER_ID, start: { gte: windowStart } },
     orderBy: { start: "desc" },
   });
 
-  const longRunWeeks = new Set<string>();
-  for (const w of rows) {
-    if (!isRun(w.sportName)) continue;
-    if (!w.distanceMeters || w.distanceMeters < LONG_RUN_METERS) continue;
-    const weekIndex = Math.floor(w.start.getTime() / (7 * 24 * 60 * 60 * 1000));
-    longRunWeeks.add(String(weekIndex));
+  const runs = rows
+    .filter((w) => isRun(w.sportName) && w.distanceMeters && w.distanceMeters > 0)
+    .map((w) => ({ start: w.start, meters: w.distanceMeters as number }));
+
+  const buckets = new Map<number, { miles: number; longRunMiles: number }>();
+  for (const r of runs) {
+    const wi = Math.floor(r.start.getTime() / WEEK_MS);
+    const miles = r.meters / METERS_PER_MILE;
+    const b = buckets.get(wi) ?? { miles: 0, longRunMiles: 0 };
+    b.miles += miles;
+    b.longRunMiles = Math.max(b.longRunMiles, miles);
+    buckets.set(wi, b);
+  }
+
+  const anchorWeek = Math.floor(anchor.getTime() / WEEK_MS);
+  const weeklyVolume: WeeklyVolume[] = [];
+  for (let i = windowWeeks - 1; i >= 0; i--) {
+    const wi = anchorWeek - i;
+    const b = buckets.get(wi) ?? { miles: 0, longRunMiles: 0 };
+    weeklyVolume.push({
+      label: shortDay(wi * WEEK_MS),
+      miles: round1(b.miles),
+      longRunMiles: round1(b.longRunMiles),
+    });
+  }
+
+  const longRunMilesThreshold = LONG_RUN_METERS / METERS_PER_MILE;
+  const weeksWithLongRun = weeklyVolume.filter(
+    (w) => w.longRunMiles >= longRunMilesThreshold,
+  ).length;
+
+  let longestRun: { miles: number; date: string } | null = null;
+  for (const r of runs) {
+    const miles = r.meters / METERS_PER_MILE;
+    if (!longestRun || miles > longestRun.miles) {
+      longestRun = { miles: round1(miles), date: shortDay(r.start.getTime()) };
+    }
   }
 
   return {
     weeksToRace,
+    raceName: RACE_NAME,
+    raceDistanceMiles: RACE_DISTANCE_MILES,
+    longestRun,
+    coveredRaceDistance:
+      longestRun != null && longestRun.miles >= RACE_DISTANCE_MILES,
     windowWeeks,
-    weeksWithLongRun: longRunWeeks.size,
+    weeksWithLongRun,
+    weeklyVolume,
+    thisWeekMiles: weeklyVolume[weeklyVolume.length - 1]?.miles ?? 0,
+    lastWeekMiles: weeklyVolume[weeklyVolume.length - 2]?.miles ?? 0,
   };
 }
 
