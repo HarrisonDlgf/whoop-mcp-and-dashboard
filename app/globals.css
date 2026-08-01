@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+:root,
+:root[data-theme="dark"] {
+  --canvas: #0E1116;
+  --glow-1: rgba(23, 168, 134, 0.10);
+  --glow-2: rgba(95, 111, 236, 0.10);
+  --surface: rgba(22, 27, 34, 0.72);
+  --surface-solid: #161B22;
+  --elevated: #1C232C;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --ink: #E6EDF3;
+  --ink-soft: #9BA7B4;
+  --muted: #6B7684;
+  --accent: #17A886;
+  --accent-ink: #06110D;
+
+  --green: #14D68E; --green-bg: rgba(20, 214, 142, 0.13);
+  --amber: #F5B23D; --amber-bg: rgba(245, 178, 61, 0.13);
+  --red:   #F2564C; --red-bg:   rgba(242, 86, 76, 0.13);
+  --good: #14D68E; --bad: #F2564C;
+
+  --chart-hrv: #17A886;
+  --chart-rhr: #5F6FEC;
+  --chart-rec: #14D68E;
+  --grid: rgba(255, 255, 255, 0.06);
+  --axis: #6B7684;
+
+  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 10px 30px rgba(0, 0, 0, 0.45);
+  --glass-blur: 14px;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --canvas: #F5F7FA;
+  --glow-1: rgba(18, 164, 123, 0.06);
+  --glow-2: rgba(85, 99, 224, 0.06);
+  --surface: #FFFFFF;
+  --surface-solid: #FFFFFF;
+  --elevated: #FFFFFF;
+  --border: #E6E8EB;
+  --border-strong: #D8DBDF;
+  --ink: #14181D;
+  --ink-soft: #55606E;
+  --muted: #8A94A2;
+  --accent: #12A47B;
+  --accent-ink: #FFFFFF;
+
+  --green: #10A870; --green-bg: rgba(16, 168, 112, 0.10);
+  --amber: #C1831A; --amber-bg: rgba(193, 131, 26, 0.12);
+  --red:   #D2453A; --red-bg:   rgba(210, 69, 58, 0.10);
+  --good: #10A870; --bad: #D2453A;
+
+  --chart-hrv: #12A47B;
+  --chart-rhr: #5563E0;
+  --chart-rec: #10A870;
+  --grid: #EEF1F4;
+  --axis: #8A94A2;
+
+  --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.06);
+  --glass-blur: 0px;
+  color-scheme: light;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+html { height: 100%; background: var(--canvas); }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100%;
+  background:
+    radial-gradient(900px 500px at 12% -8%, var(--glow-1), transparent 60%),
+    radial-gradient(800px 500px at 100% 0%, var(--glow-2), transparent 55%),
+    var(--canvas);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
 }
