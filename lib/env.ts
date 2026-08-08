@@ -15,6 +15,8 @@ const envSchema = z.object({
 
   CRON_SECRET: z.string().min(16).optional(),
 
+  MCP_HTTP_SECRET: z.string().min(16).optional(),
+
   // WHOOP OAuth
   WHOOP_CLIENT_ID: z.string().min(1),
   WHOOP_CLIENT_SECRET: z.string().min(1),
