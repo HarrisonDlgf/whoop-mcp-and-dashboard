@@ -25,7 +25,7 @@ function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-export function CommandPalette() {
+export function CommandPalette({ demo = false }: { demo?: boolean }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -34,16 +34,20 @@ export function CommandPalette() {
   const commands = useMemo<Command[]>(
     () => [
       { id: "theme", label: "Toggle light / dark", hint: "Theme", icon: SunMoon, run: () => toggleTheme() },
-      { id: "sync", label: "Sync now", hint: "Pull latest from WHOOP", icon: RefreshCw, run: async () => {
-          try { await fetch("/api/whoop/backfill", { method: "POST" }); } finally { location.reload(); }
-        } },
-      { id: "reconnect", label: "Reconnect WHOOP", hint: "Re-authorize", icon: Plug, run: () => { location.href = "/api/whoop/login"; } },
+      ...(demo
+        ? []
+        : [
+            { id: "sync", label: "Sync now", hint: "Pull latest from WHOOP", icon: RefreshCw, run: async () => {
+                try { await fetch("/api/whoop/backfill", { method: "POST" }); } finally { location.reload(); }
+              } },
+            { id: "reconnect", label: "Reconnect WHOOP", hint: "Re-authorize", icon: Plug, run: () => { location.href = "/api/whoop/login"; } },
+          ]),
       { id: "today", label: "Jump to today", hint: "Readout", icon: Activity, run: () => scrollToId("today") },
       { id: "trends", label: "Jump to trends", hint: "14-day", icon: Moon, run: () => scrollToId("trends") },
       { id: "training", label: "Jump to training", hint: "Runs & lifts", icon: Flame, run: () => scrollToId("training") },
-      { id: "race", label: "Jump to race prep", hint: "Aug 16", icon: Trophy, run: () => scrollToId("race") },
+      { id: "race", label: "Jump to race prep", hint: "Race", icon: Trophy, run: () => scrollToId("race") },
     ],
-    [],
+    [demo],
   );
 
   const results = useMemo(() => {

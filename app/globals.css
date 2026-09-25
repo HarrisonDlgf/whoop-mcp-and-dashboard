@@ -20,6 +20,7 @@
   --amber: #F5B23D; --amber-bg: rgba(245, 178, 61, 0.13);
   --red:   #F2564C; --red-bg:   rgba(242, 86, 76, 0.13);
   --good: #14D68E; --bad: #F2564C;
+  --zone-easy: #2E9BD6; --zone-hard: #F2564C;
 
   --chart-hrv: #17A886;
   --chart-rhr: #5F6FEC;
@@ -51,6 +52,7 @@
   --amber: #C1831A; --amber-bg: rgba(193, 131, 26, 0.12);
   --red:   #D2453A; --red-bg:   rgba(210, 69, 58, 0.10);
   --good: #10A870; --bad: #D2453A;
+  --zone-easy: #1F7FB8; --zone-hard: #D2453A;
 
   --chart-hrv: #12A47B;
   --chart-rhr: #5563E0;
