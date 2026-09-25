@@ -6,7 +6,7 @@ import {
   getTrend,
   getRecentRuns,
   getRecentLifts,
-  getRacePrep,
+  getReadiness,
   getLastSync,
   getZoneMix,
   getTaper,
@@ -25,13 +25,13 @@ export default async function Dashboard() {
     notFound();
   }
 
-  const [readout, trend, runs, lifts, racePrep, lastSync, zoneMix, taper, efficiency] =
+  const [readout, trend, runs, lifts, readiness, lastSync, zoneMix, taper, efficiency] =
     await Promise.all([
       getLatestReadout(),
       getTrend(14),
       getRecentRuns(4),
       getRecentLifts(3),
-      getRacePrep(6),
+      getReadiness(8),
       getLastSync(),
       getZoneMix(6),
       getTaper(),
@@ -63,7 +63,7 @@ export default async function Dashboard() {
         trend,
         runs,
         lifts,
-        racePrep,
+        readiness,
         lastSync,
         zoneMix,
         taper,

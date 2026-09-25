@@ -4,9 +4,6 @@ import { SESSION_COOKIE, secretMatches, sessionToken } from "@/lib/auth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Exchanges ?secret=... for an httpOnly session cookie, then redirects to a
-// clean URL. Keeping the secret out of the address bar means it does not sit
-// in browser history or leak through a referrer header.
 export async function GET(request: Request) {
   const url = new URL(request.url);
 

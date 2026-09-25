@@ -240,3 +240,20 @@ kbd { font-family: var(--fd); font-size: 11px; background: var(--elevated);
 .demo-text { font-size: 12.5px; color: var(--muted); line-height: 1.5; flex: 1; min-width: 220px; }
 .demo-link { font-family: var(--fd); font-size: 12px; color: var(--ink-soft); text-decoration: none; white-space: nowrap; }
 .demo-link:hover { color: var(--ink); }
+
+/* ---- Half marathon readiness ---- */
+.hm-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.hm-score { font-family: var(--fd); font-size: 38px; font-weight: 650; color: var(--ink); line-height: 1; letter-spacing: -0.02em; }
+.hm-score small { font-size: 16px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+.hm-score-sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.hm-when { text-align: right; }
+.hm-when-val { font-family: var(--fd); font-size: 15px; font-weight: 600; color: var(--ink); }
+.hm-when-sub { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+.hm-meters { display: flex; flex-direction: column; gap: 14px; margin-top: 20px; }
+.hm-meter-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--ink-soft); margin-bottom: 6px; }
+.hm-meter-pct { font-family: var(--fd); font-weight: 600; }
+.hm-meter-detail { font-size: 11.5px; color: var(--muted); margin-top: 5px; }
+.hm-verdict { margin-top: 16px; font-size: 12.5px; line-height: 1.5; padding: 10px 12px; border-radius: 10px; }
+.hm-verdict.ok { background: var(--green-bg); color: var(--good); }
+.hm-verdict.warn { background: var(--amber-bg); color: var(--amber); }
+.hm-verdict.muted { background: var(--elevated); color: var(--muted); }

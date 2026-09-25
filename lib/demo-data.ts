@@ -1,15 +1,7 @@
 import type { DashboardData } from "@/app/_components/DashboardView";
 
-// Synthetic data for the public demo at /demo. Everything here is invented:
-// no real biometrics are read, and nothing touches the database, so the demo
-// renders identically for every visitor and needs no WHOOP connection.
-//
-// Values are hard-coded rather than randomised so the server and client render
-// the same markup and the page stays stable across reloads.
-
 const DEMO_NAME = "Alex";
 
-// Anchored to a fixed date so the demo never drifts or goes stale.
 const TODAY = new Date("2026-05-17T00:00:00Z");
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -66,14 +58,18 @@ export const demoData: DashboardData = {
     { date: label(9), durationMinutes: 47, strain: 9.6, avgHr: 115 },
   ],
 
-  racePrep: {
+  readiness: {
+    raceName: "Half marathon",
+    raceDistanceMiles: 13.1,
+    raceDateLabel: "June 2026",
+    daysToRace: 18,
     weeksToRace: 3,
-    raceName: "Falmouth",
-    raceDistanceMiles: 7,
     longestRun: { miles: 8.2, date: label(12) },
-    coveredRaceDistance: true,
-    windowWeeks: 6,
-    weeksWithLongRun: 5,
+    longRunTargetMiles: 10,
+    weeklyTargetMiles: 20,
+    avgWeeklyMiles: 20,
+    peakWeekMiles: 24.8,
+    thisWeekMiles: 18.7,
     weeklyVolume: [
       { label: label(38), miles: 14.2, longRunMiles: 5.1 },
       { label: label(31), miles: 18.6, longRunMiles: 6.4 },
@@ -82,8 +78,11 @@ export const demoData: DashboardData = {
       { label: label(10), miles: 22.1, longRunMiles: 7.0 },
       { label: label(3), miles: 18.7, longRunMiles: 6.2 },
     ],
-    thisWeekMiles: 18.7,
-    lastWeekMiles: 22.1,
+    windowWeeks: 6,
+    readinessPct: 89,
+    longRunPct: 82,
+    volumePct: 100,
+    verdict: "ready",
   },
 
   lastSync: new Date("2026-05-17T06:12:00Z"),
@@ -111,9 +110,9 @@ export const demoData: DashboardData = {
   taper: {
     daysToRace: 18,
     daysSinceLastRun: 1,
-    raceName: "Falmouth",
+    raceName: "Half marathon",
     raceDateLabel: "Jun 4",
-    raceDistanceMiles: 7,
+    raceDistanceMiles: 13.1,
     peakWeekMiles: 24.8,
     raceWeekMiles: 18.7,
     reductionPct: 24.6,
