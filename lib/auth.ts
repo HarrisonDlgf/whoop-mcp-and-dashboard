@@ -26,8 +26,6 @@ export function secretMatches(provided: string | null | undefined): boolean {
   return constantTimeEquals(provided ?? "", env.APP_SECRET);
 }
 
-// The cookie holds a hash of APP_SECRET rather than the secret itself, so a
-// leaked cookie cannot be replayed against the header/query-param routes.
 export function sessionToken(): string {
   return createHash("sha256").update(env.APP_SECRET).digest("hex");
 }

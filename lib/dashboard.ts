@@ -2,13 +2,15 @@ import { prisma, SINGLETON_USER_ID } from "@/lib/db";
 
 const METERS_PER_MILE = 1609.344;
 
-// Falmouth road race day
-export const RACE_DAY = new Date("2026-08-16T00:00:00Z");
-export const RACE_NAME = "Falmouth";
-export const RACE_DISTANCE_MILES = 7;
+export const RACE_DAY = new Date("2027-02-14T00:00:00Z");
+export const RACE_NAME = "Half marathon";
+export const RACE_DISTANCE_MILES = 13.1;
+
+const LONG_RUN_TARGET_MILES = 10;
+const WEEKLY_TARGET_MILES = 20;
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const LONG_RUN_METERS = 5 * METERS_PER_MILE;
+const LONG_RUN_METERS = 8 * METERS_PER_MILE;
 
 function isRun(sportName: string): boolean {
   return sportName.toLowerCase().includes("run");
@@ -27,9 +29,6 @@ function startOfUtcDay(date: Date): Date {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// Monday-start week. Bucketing on Math.floor(t / WEEK_MS) instead would key on
-// epoch weeks, which begin Thursday (Jan 1 1970), so "this week" would run
-// Thu-Wed and weekly mileage would not line up with a training week.
 function weekStartMs(date: Date): number {
   const d = startOfUtcDay(date);
   const mondayIndex = (d.getUTCDay() + 6) % 7;
@@ -314,11 +313,6 @@ export async function getRacePrep(windowWeeks = 6): Promise<RacePrep> {
   };
 }
 
-
-// WHOOP stores time-in-zone on every scored workout. Zones 1-2 are aerobic
-// ("easy"), 3-5 are threshold and above ("hard"). Zone 0 is below 50% of max
-// heart rate — warm-up and standing around — so it is reported but kept out of
-// the easy/hard ratio, which would otherwise flatter every run.
 type ZoneDurations = {
   zone_zero_milli: number;
   zone_one_milli: number;
@@ -456,6 +450,84 @@ export async function getZoneMix(windowWeeks = 6): Promise<ZoneMix> {
   };
 }
 
+export type Readiness = {
+  raceName: string;
+  raceDistanceMiles: number;
+  raceDateLabel: string;
+  daysToRace: number;
+  weeksToRace: number;
+  longestRun: { miles: number; date: string } | null;
+  longRunTargetMiles: number;
+  weeklyTargetMiles: number;
+  avgWeeklyMiles: number;
+  peakWeekMiles: number;
+  thisWeekMiles: number;
+  weeklyVolume: WeeklyVolume[];
+  windowWeeks: number;
+  readinessPct: number;
+  longRunPct: number;
+  volumePct: number;
+  verdict: "ready" | "building" | "behind" | "no-data";
+};
+
+function clampFraction(value: number, target: number): number {
+  if (target <= 0) return 0;
+  return Math.min(1, Math.max(0, value / target));
+}
+
+export async function getReadiness(windowWeeks = 8): Promise<Readiness> {
+  const prep = await getRacePrep(windowWeeks);
+
+  const weeksWithMiles = prep.weeklyVolume.filter((w) => w.miles > 0);
+  const avgWeeklyMiles =
+    weeksWithMiles.length > 0
+      ? weeksWithMiles.reduce((a, w) => a + w.miles, 0) / weeksWithMiles.length
+      : 0;
+  const peakWeekMiles = Math.max(...prep.weeklyVolume.map((w) => w.miles), 0);
+
+  const longRunPct = clampFraction(
+    prep.longestRun?.miles ?? 0,
+    LONG_RUN_TARGET_MILES,
+  );
+  const volumePct = clampFraction(avgWeeklyMiles, WEEKLY_TARGET_MILES);
+  const readinessPct = (longRunPct * 0.6 + volumePct * 0.4) * 100;
+
+  const daysToRace = Math.max(
+    0,
+    Math.ceil((RACE_DAY.getTime() - startOfUtcDay(new Date()).getTime()) / DAY_MS),
+  );
+
+  let verdict: Readiness["verdict"];
+  if (prep.longestRun === null || avgWeeklyMiles === 0) verdict = "no-data";
+  else if (readinessPct >= 85) verdict = "ready";
+  else if (readinessPct >= 50) verdict = "building";
+  else verdict = "behind";
+
+  return {
+    raceName: RACE_NAME,
+    raceDistanceMiles: RACE_DISTANCE_MILES,
+    raceDateLabel: RACE_DAY.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }),
+    daysToRace,
+    weeksToRace: prep.weeksToRace,
+    longestRun: prep.longestRun,
+    longRunTargetMiles: LONG_RUN_TARGET_MILES,
+    weeklyTargetMiles: WEEKLY_TARGET_MILES,
+    avgWeeklyMiles: round1(avgWeeklyMiles),
+    peakWeekMiles,
+    thisWeekMiles: prep.thisWeekMiles,
+    weeklyVolume: prep.weeklyVolume,
+    windowWeeks,
+    readinessPct: Math.round(readinessPct),
+    longRunPct: Math.round(longRunPct * 100),
+    volumePct: Math.round(volumePct * 100),
+    verdict,
+  };
+}
+
 export type Taper = {
   daysToRace: number;
   daysSinceLastRun: number | null;
@@ -486,8 +558,6 @@ export async function getTaper(): Promise<Taper> {
   const prep = await getRacePrep(8);
   const peakWeekMiles = Math.max(...prep.weeklyVolume.map((w) => w.miles), 0);
 
-  // A week at zero miles reads as a 100% taper unless we distinguish "tapering"
-  // from "not running", so carry the gap since the last run alongside it.
   const recentWorkouts = await prisma.workout.findMany({
     where: { userId: SINGLETON_USER_ID },
     orderBy: { start: "desc" },
@@ -503,8 +573,6 @@ export async function getTaper(): Promise<Taper> {
       )
     : null;
 
-  // Recovery over the taper compared with the block that preceded it. Rising
-  // HRV and falling resting heart rate is the signature of absorbing a taper.
   const recoveries = await prisma.recovery.findMany({
     where: { userId: SINGLETON_USER_ID },
     orderBy: { date: "desc" },
@@ -564,9 +632,6 @@ export type Efficiency = {
   changePct: number | null;
 };
 
-// Efficiency factor: metres covered per minute, per heart beat. Going up means
-// the same heart rate is buying more speed, which is aerobic fitness improving.
-// Comparing raw pace would just track how hard each run was.
 export async function getEfficiency(windowWeeks = 10): Promise<Efficiency> {
   const latest = await prisma.workout.findFirst({
     where: { userId: SINGLETON_USER_ID },
