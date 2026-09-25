@@ -25,6 +25,17 @@ function startOfUtcDay(date: Date): Date {
   return d;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Monday-start week. Bucketing on Math.floor(t / WEEK_MS) instead would key on
+// epoch weeks, which begin Thursday (Jan 1 1970), so "this week" would run
+// Thu-Wed and weekly mileage would not line up with a training week.
+function weekStartMs(date: Date): number {
+  const d = startOfUtcDay(date);
+  const mondayIndex = (d.getUTCDay() + 6) % 7;
+  return d.getTime() - mondayIndex * DAY_MS;
+}
+
 export type Readout = {
   date: Date;
   recoveryScore: number | null;
@@ -255,7 +266,7 @@ export async function getRacePrep(windowWeeks = 6): Promise<RacePrep> {
 
   const buckets = new Map<number, { miles: number; longRunMiles: number }>();
   for (const r of runs) {
-    const wi = Math.floor(r.start.getTime() / WEEK_MS);
+    const wi = weekStartMs(r.start);
     const miles = r.meters / METERS_PER_MILE;
     const b = buckets.get(wi) ?? { miles: 0, longRunMiles: 0 };
     b.miles += miles;
@@ -263,13 +274,13 @@ export async function getRacePrep(windowWeeks = 6): Promise<RacePrep> {
     buckets.set(wi, b);
   }
 
-  const anchorWeek = Math.floor(anchor.getTime() / WEEK_MS);
+  const anchorWeek = weekStartMs(anchor);
   const weeklyVolume: WeeklyVolume[] = [];
   for (let i = windowWeeks - 1; i >= 0; i--) {
-    const wi = anchorWeek - i;
+    const wi = anchorWeek - i * WEEK_MS;
     const b = buckets.get(wi) ?? { miles: 0, longRunMiles: 0 };
     weeklyVolume.push({
-      label: shortDay(wi * WEEK_MS),
+      label: shortDay(wi),
       miles: round1(b.miles),
       longRunMiles: round1(b.longRunMiles),
     });
@@ -303,6 +314,310 @@ export async function getRacePrep(windowWeeks = 6): Promise<RacePrep> {
   };
 }
 
+
+// WHOOP stores time-in-zone on every scored workout. Zones 1-2 are aerobic
+// ("easy"), 3-5 are threshold and above ("hard"). Zone 0 is below 50% of max
+// heart rate — warm-up and standing around — so it is reported but kept out of
+// the easy/hard ratio, which would otherwise flatter every run.
+type ZoneDurations = {
+  zone_zero_milli: number;
+  zone_one_milli: number;
+  zone_two_milli: number;
+  zone_three_milli: number;
+  zone_four_milli: number;
+  zone_five_milli: number;
+};
+
+const ZONE_KEYS = [
+  "zone_zero_milli",
+  "zone_one_milli",
+  "zone_two_milli",
+  "zone_three_milli",
+  "zone_four_milli",
+  "zone_five_milli",
+] as const;
+
+function parseZones(value: unknown): ZoneDurations | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  if (!ZONE_KEYS.every((k) => typeof v[k] === "number")) return null;
+  return Object.fromEntries(
+    ZONE_KEYS.map((k) => [k, v[k] as number]),
+  ) as unknown as ZoneDurations;
+}
+
+function zoneMinutes(z: ZoneDurations): number[] {
+  return ZONE_KEYS.map((k) => z[k] / 60_000);
+}
+
+function easyHard(minutes: number[]): {
+  easy: number;
+  hard: number;
+  easyPct: number | null;
+} {
+  const easy = minutes[1] + minutes[2];
+  const hard = minutes[3] + minutes[4] + minutes[5];
+  const total = easy + hard;
+  return { easy, hard, easyPct: total > 0 ? (easy / total) * 100 : null };
+}
+
+export type ZoneWeek = {
+  label: string;
+  easyMinutes: number;
+  hardMinutes: number;
+  easyPct: number | null;
+};
+
+export type ZoneRun = {
+  date: string;
+  miles: number | null;
+  minutes: number[];
+  totalMinutes: number;
+  easyPct: number | null;
+};
+
+export type ZoneMix = {
+  weeks: ZoneWeek[];
+  recentRuns: ZoneRun[];
+  overallEasyPct: number | null;
+  runsWithZoneData: number;
+};
+
+export async function getZoneMix(windowWeeks = 6): Promise<ZoneMix> {
+  const latest = await prisma.workout.findFirst({
+    where: { userId: SINGLETON_USER_ID },
+    orderBy: { start: "desc" },
+    select: { start: true },
+  });
+  const anchor = latest?.start ?? new Date();
+  const windowStart = new Date(weekStartMs(anchor) - (windowWeeks - 1) * WEEK_MS);
+
+  const rows = await prisma.workout.findMany({
+    where: { userId: SINGLETON_USER_ID, start: { gte: windowStart } },
+    orderBy: { start: "desc" },
+  });
+
+  const runs = rows
+    .filter((w) => isRun(w.sportName))
+    .map((w) => ({ row: w, zones: parseZones(w.zoneDurations) }))
+    .filter((r): r is { row: (typeof rows)[number]; zones: ZoneDurations } =>
+      r.zones !== null,
+    );
+
+  const buckets = new Map<number, { easy: number; hard: number }>();
+  for (const { row, zones } of runs) {
+    const { easy, hard } = easyHard(zoneMinutes(zones));
+    const wi = weekStartMs(row.start);
+    const b = buckets.get(wi) ?? { easy: 0, hard: 0 };
+    b.easy += easy;
+    b.hard += hard;
+    buckets.set(wi, b);
+  }
+
+  const anchorWeek = weekStartMs(anchor);
+  const weeks: ZoneWeek[] = [];
+  for (let i = windowWeeks - 1; i >= 0; i--) {
+    const wi = anchorWeek - i * WEEK_MS;
+    const b = buckets.get(wi) ?? { easy: 0, hard: 0 };
+    const total = b.easy + b.hard;
+    weeks.push({
+      label: shortDay(wi),
+      easyMinutes: Math.round(b.easy),
+      hardMinutes: Math.round(b.hard),
+      easyPct: total > 0 ? (b.easy / total) * 100 : null,
+    });
+  }
+
+  const totals = runs.reduce(
+    (acc, { zones }) => {
+      const { easy, hard } = easyHard(zoneMinutes(zones));
+      return { easy: acc.easy + easy, hard: acc.hard + hard };
+    },
+    { easy: 0, hard: 0 },
+  );
+  const grand = totals.easy + totals.hard;
+
+  const recentRuns: ZoneRun[] = runs.slice(0, 5).map(({ row, zones }) => {
+    const minutes = zoneMinutes(zones);
+    return {
+      date: shortDay(row.start.getTime()),
+      miles: row.distanceMeters ? round1(row.distanceMeters / METERS_PER_MILE) : null,
+      minutes,
+      totalMinutes: minutes.reduce((a, b) => a + b, 0),
+      easyPct: easyHard(minutes).easyPct,
+    };
+  });
+
+  return {
+    weeks,
+    recentRuns,
+    overallEasyPct: grand > 0 ? (totals.easy / grand) * 100 : null,
+    runsWithZoneData: runs.length,
+  };
+}
+
+export type Taper = {
+  daysToRace: number;
+  daysSinceLastRun: number | null;
+  raceName: string;
+  raceDateLabel: string;
+  raceDistanceMiles: number;
+  peakWeekMiles: number;
+  raceWeekMiles: number;
+  reductionPct: number | null;
+  hrvRecent: number | null;
+  hrvBaseline: number | null;
+  rhrRecent: number | null;
+  rhrBaseline: number | null;
+  absorbing: "yes" | "no" | "unclear";
+};
+
+function mean(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+export async function getTaper(): Promise<Taper> {
+  const daysToRace = Math.max(
+    0,
+    Math.ceil((RACE_DAY.getTime() - startOfUtcDay(new Date()).getTime()) / DAY_MS),
+  );
+
+  const prep = await getRacePrep(8);
+  const peakWeekMiles = Math.max(...prep.weeklyVolume.map((w) => w.miles), 0);
+
+  // A week at zero miles reads as a 100% taper unless we distinguish "tapering"
+  // from "not running", so carry the gap since the last run alongside it.
+  const recentWorkouts = await prisma.workout.findMany({
+    where: { userId: SINGLETON_USER_ID },
+    orderBy: { start: "desc" },
+    take: 60,
+  });
+  const lastRun = recentWorkouts.find(
+    (w) => isRun(w.sportName) && w.distanceMeters && w.distanceMeters > 0,
+  );
+  const daysSinceLastRun = lastRun
+    ? Math.floor(
+        (startOfUtcDay(new Date()).getTime() - startOfUtcDay(lastRun.start).getTime()) /
+          DAY_MS,
+      )
+    : null;
+
+  // Recovery over the taper compared with the block that preceded it. Rising
+  // HRV and falling resting heart rate is the signature of absorbing a taper.
+  const recoveries = await prisma.recovery.findMany({
+    where: { userId: SINGLETON_USER_ID },
+    orderBy: { date: "desc" },
+    take: 30,
+  });
+  const recent = recoveries.slice(0, 7);
+  const baseline = recoveries.slice(7);
+
+  const hrvRecent = mean(recent.map((r) => r.hrv).filter((v): v is number => v !== null));
+  const hrvBaseline = mean(baseline.map((r) => r.hrv).filter((v): v is number => v !== null));
+  const rhrRecent = mean(
+    recent.map((r) => r.restingHeartRate).filter((v): v is number => v !== null),
+  );
+  const rhrBaseline = mean(
+    baseline.map((r) => r.restingHeartRate).filter((v): v is number => v !== null),
+  );
+
+  let absorbing: Taper["absorbing"] = "unclear";
+  if (hrvRecent !== null && hrvBaseline !== null && rhrRecent !== null && rhrBaseline !== null) {
+    const hrvUp = hrvRecent >= hrvBaseline;
+    const rhrDown = rhrRecent <= rhrBaseline;
+    if (hrvUp && rhrDown) absorbing = "yes";
+    else if (!hrvUp && !rhrDown) absorbing = "no";
+  }
+
+  return {
+    daysToRace,
+    daysSinceLastRun,
+    raceName: RACE_NAME,
+    raceDateLabel: shortDay(RACE_DAY.getTime()),
+    raceDistanceMiles: RACE_DISTANCE_MILES,
+    peakWeekMiles,
+    raceWeekMiles: prep.thisWeekMiles,
+    reductionPct:
+      peakWeekMiles > 0
+        ? ((peakWeekMiles - prep.thisWeekMiles) / peakWeekMiles) * 100
+        : null,
+    hrvRecent,
+    hrvBaseline,
+    rhrRecent,
+    rhrBaseline,
+    absorbing,
+  };
+}
+
+export type EfficiencyPoint = {
+  date: string;
+  ef: number;
+  pacePerMile: string;
+  avgHr: number;
+  miles: number;
+  easy: boolean;
+};
+
+export type Efficiency = {
+  points: EfficiencyPoint[];
+  changePct: number | null;
+};
+
+// Efficiency factor: metres covered per minute, per heart beat. Going up means
+// the same heart rate is buying more speed, which is aerobic fitness improving.
+// Comparing raw pace would just track how hard each run was.
+export async function getEfficiency(windowWeeks = 10): Promise<Efficiency> {
+  const latest = await prisma.workout.findFirst({
+    where: { userId: SINGLETON_USER_ID },
+    orderBy: { start: "desc" },
+    select: { start: true },
+  });
+  const anchor = latest?.start ?? new Date();
+  const windowStart = new Date(weekStartMs(anchor) - (windowWeeks - 1) * WEEK_MS);
+
+  const rows = await prisma.workout.findMany({
+    where: { userId: SINGLETON_USER_ID, start: { gte: windowStart } },
+    orderBy: { start: "asc" },
+  });
+
+  const points: EfficiencyPoint[] = [];
+  for (const w of rows) {
+    if (!isRun(w.sportName)) continue;
+    const meters = w.distanceMeters;
+    const avgHr = w.avgHr;
+    const minutes = (w.end.getTime() - w.start.getTime()) / 60_000;
+    if (!meters || meters <= 0 || !avgHr || avgHr <= 0 || minutes <= 0) continue;
+
+    const metersPerMinute = meters / minutes;
+    const perMile = minutes / (meters / METERS_PER_MILE);
+    const paceMin = Math.floor(perMile);
+    const paceSec = Math.round((perMile - paceMin) * 60);
+    const zones = parseZones(w.zoneDurations);
+    const easyPct = zones ? easyHard(zoneMinutes(zones)).easyPct : null;
+
+    points.push({
+      date: shortDay(w.start.getTime()),
+      ef: Math.round((metersPerMinute / avgHr) * 1000) / 1000,
+      pacePerMile: `${paceMin}:${paceSec.toString().padStart(2, "0")}`,
+      avgHr,
+      miles: round1(meters / METERS_PER_MILE),
+      easy: easyPct !== null && easyPct >= 70,
+    });
+  }
+
+  let changePct: number | null = null;
+  if (points.length >= 4) {
+    const half = Math.floor(points.length / 2);
+    const first = mean(points.slice(0, half).map((p) => p.ef));
+    const second = mean(points.slice(half).map((p) => p.ef));
+    if (first !== null && second !== null && first > 0) {
+      changePct = ((second - first) / first) * 100;
+    }
+  }
+
+  return { points, changePct };
+}
 
 export async function getLastSync(): Promise<Date | null> {
   const latest = await prisma.recovery.findFirst({

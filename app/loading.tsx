@@ -10,7 +10,7 @@ export default function Loading() {
           </div>
         </div>
         <div className="eyebrow">Loading your readout…</div>
-        <h1 className="h1" style={{ color: "var(--muted)" }}>Good morning, Harrison</h1>
+        <h1 className="h1" style={{ color: "var(--muted)" }}>Good morning</h1>
         <div className="section-label">Today</div>
         <div className="today">
           <div className="card rec-card" style={{ minHeight: 176 }} />
